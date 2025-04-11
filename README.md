@@ -1,4 +1,4 @@
-**WOLverine (WOL = Wake-on-LAN + Wolverine 😄)**
+# WOLverine (WOL = Wake-on-LAN + Wolverine 😄)
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/Michdo93/WOLverine/refs/heads/main/static/wolverine.webp" alt="Wolverine Logo" width="300">
