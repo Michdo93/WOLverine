@@ -98,7 +98,11 @@ pip install eventlet==0.39.1
 
 > [!WARNING]  
 > Not all computers are capable of Wake-on-LAN (WOL). You must of course have WOL activated on a remote computer (if supported).
+
+> [!WARNING]  
 > Not all computers have it activated so that they can be pinged. Logically, you must have activated that a computer can be pinged.
+
+> [!WARNING]  
 > If you want to wake up and shut down a computer, you should have both SSH installed on this computer and the SSH service must also be activated.
 
 ---
