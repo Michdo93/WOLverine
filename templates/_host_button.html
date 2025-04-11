@@ -1,0 +1,10 @@
+<div class="host-card">
+  <h3>{{ host.name }}</h3>
+  <p>Status: <span id="status-{{ idx }}">will be loaded...</span></p>
+  {% if host.has_ssh %}
+  <button onclick="performAction({{ idx }})" id="btn-{{ idx }}">
+    Loading...
+  </button>
+  {% endif %}
+  <pre id="info-{{ idx }}"></pre>
+</div>

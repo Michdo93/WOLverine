@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WOLverine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        .navbar-brand img {
+            height: 50px;
+        }
+
+        .jumbotron {
+            background-color: #f8f9fa;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .host-card {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .sticky-footer {
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <img src="/static/wolverine.webp" alt="Wolverine Logo">
+            </a>
+            <a class="navbar-brand" href="#">WOLverine</a>
+            <a href="/logout" class="btn btn-danger ms-auto">Logout</a>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="container mt-5 pt-5">
+        <h1 class="mb-4 text-center">WOLverine Remote Control</h1>
+
+        <div class="row">
+            {% for host in hosts %}
+                {% set idx = loop.index0 %}
+                <div class="col-md-4 mb-4">
+                    <div class="host-card">
+                        <h3>{{ host.name }}</h3>
+                        <p>IP address: {{ host.ip }}</p>
+                        <p>Status: <span id="status-{{ idx }}">🔄 Checking...</span></p>
+                        
+                        {% if host.has_ssh %}
+                            <button onclick="performAction({{ idx }})" id="btn-{{ idx }}" class="btn btn-primary">Loading...</button>
+                        {% endif %}
+                        
+                        <pre id="info-{{ idx }}"></pre>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Sticky Footer -->
+    <footer class="sticky-footer mt-auto bg-light py-3">
+        <div class="container text-center">
+            <span>&copy; WOLverine 2025</span>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.0.0/dist/socket.io.min.js"></script>
+    <script>
+        const socket = io.connect("http://localhost:5000");
+
+        // When status update is received via WebSocket.
+        socket.on('status_update', (data) => {
+            console.log("Status update received:", data);
+            document.getElementById(`status-${data.idx}`).textContent = data.online ? '🟢 Online' : '🔴 Offline';
+
+            // Change the button labeling depending on SSH availability.
+            if (data.has_ssh) {
+                document.getElementById(`btn-${data.idx}`).textContent = data.online ? 'Shutdown' : 'Wake up';
+            } else {
+                document.getElementById(`btn-${data.idx}`).remove();
+            }
+            
+            document.getElementById(`info-${data.idx}`).textContent = data.info;
+        });
+
+
+        // Perform an action (wake/shutdown).
+        async function performAction(i) {
+            const res = await fetch(`/action/${i}`, { method: 'POST' });
+            const result = await res.json();
+            setTimeout(() => fetchStatus(i), 4000);
+        }
+
+        // Query the status of a host.
+        async function fetchStatus(i) {
+            const res = await fetch(`/status/${i}`);
+            const data = await res.json();
+            document.getElementById(`status-${i}`).textContent = data.online ? '🟢 Online' : '🔴 Offline';
+            document.getElementById(`btn-${i}`).textContent = data.online ? 'Shutdown' : 'Wake up';
+            document.getElementById(`info-${i}`).textContent = data.info;
+        }
+
+        // Initial call to query the status of the hosts.
+        function refreshAll() {
+            for (let i = 0; i < {{ hosts|length }}; i++) {
+                fetchStatus(i);
+            }
+        }
+
+        refreshAll();
+        setInterval(refreshAll, 10000); // Query status every 10 seconds.
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+</body>
+</html>
