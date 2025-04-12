@@ -32,11 +32,60 @@ class Host:
                 elif self.ssh_password:
                     ssh.connect(self.ip, username=self.ssh_user, password=self.ssh_password)
 
-                ssh.exec_command('sudo /sbin/shutdown -h now')
+                stdin, stdout, stderr = ssh.exec_command('uname')
+                os_type = stdout.read().decode().strip().lower()
+
+                if "linux" in os_type or "darwin" in os_type:
+                    command = 'sudo /sbin/shutdown -h now'
+                elif "msys" in os_type or "mingw" in os_type or "cygwin" in os_type or "nt" in os_type:
+                    command = 'shutdown /s /t 0'
+                else:
+                    stdin, stdout, stderr = ssh.exec_command('ver')
+                    ver_output = stdout.read().decode().strip()
+                    if "windows" in ver_output.lower():
+                        command = 'shutdown /s /t 0'
+                    else:
+                        command = 'sudo /sbin/shutdown -h now'
+
+                ssh.exec_command(command)
                 ssh.close()
                 return True
             except Exception as e:
-                print(e)
+                print(f"Shutdown error: {e}")
+                return False
+        return False
+
+    def reboot(self):
+        if self.ssh_user and (self.ssh_key_path or self.ssh_password):
+            try:
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+                if self.ssh_key_path and os.path.exists(self.ssh_key_path):
+                    ssh.connect(self.ip, username=self.ssh_user, key_filename=self.ssh_key_path)
+                elif self.ssh_password:
+                    ssh.connect(self.ip, username=self.ssh_user, password=self.ssh_password)
+
+                stdin, stdout, stderr = ssh.exec_command('uname')
+                os_type = stdout.read().decode().strip().lower()
+
+                if "linux" in os_type or "darwin" in os_type:
+                    command = 'sudo /sbin/reboot'
+                elif "msys" in os_type or "mingw" in os_type or "cygwin" in os_type or "nt" in os_type:
+                    command = 'shutdown /r /t 0'
+                else:
+                    stdin, stdout, stderr = ssh.exec_command('ver')
+                    ver_output = stdout.read().decode().strip()
+                    if "windows" in ver_output.lower():
+                        command = 'shutdown /r /t 0'
+                    else:
+                        command = 'sudo /sbin/reboot'
+
+                ssh.exec_command(command)
+                ssh.close()
+                return True
+            except Exception as e:
+                print(f"Reboot error: {e}")
                 return False
         return False
 

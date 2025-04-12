@@ -59,7 +59,10 @@
                         <p>Status: <span id="status-{{ idx }}">🔄 Checking...</span></p>
                         
                         {% if host.has_ssh %}
-                            <button onclick="performAction({{ idx }})" id="btn-{{ idx }}" class="btn btn-primary">Loading...</button>
+                            <div class="d-flex gap-2">
+                                <button onclick="performAction({{ idx }}, 'main')" id="btn-{{ idx }}" class="btn btn-primary">Loading...</button>
+                                <button onclick="performAction({{ idx }}, 'reboot')" id="reboot-{{ idx }}" class="btn btn-warning d-none">Reboot</button>
+                            </div>
                         {% endif %}
                         
                         <pre id="info-{{ idx }}"></pre>
@@ -80,39 +83,53 @@
     <script>
         const socket = io.connect("http://localhost:5000");
 
-        // When status update is received via WebSocket.
         socket.on('status_update', (data) => {
             console.log("Status update received:", data);
             document.getElementById(`status-${data.idx}`).textContent = data.online ? '🟢 Online' : '🔴 Offline';
 
-            // Change the button labeling depending on SSH availability.
             if (data.has_ssh) {
-                document.getElementById(`btn-${data.idx}`).textContent = data.online ? 'Shutdown' : 'Wake up';
-            } else {
-                document.getElementById(`btn-${data.idx}`).remove();
+                const mainBtn = document.getElementById(`btn-${data.idx}`);
+                const rebootBtn = document.getElementById(`reboot-${data.idx}`);
+                if (mainBtn) mainBtn.textContent = data.online ? 'Shutdown' : 'Wake up';
+                if (rebootBtn) rebootBtn.classList.toggle("d-none", !data.online);
             }
-            
+
             document.getElementById(`info-${data.idx}`).textContent = data.info;
         });
 
+        async function performAction(i, type = 'main') {
+            let action = type === 'reboot' ? 'reboot' : null;
 
-        // Perform an action (wake/shutdown).
-        async function performAction(i) {
-            const res = await fetch(`/action/${i}`, { method: 'POST' });
+            if (!action) {
+                const label = document.getElementById(`btn-${i}`).textContent;
+                action = label.toLowerCase().includes("shutdown") ? "shutdown" : "wake";
+            }
+
+            const res = await fetch(`/action/${i}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+
             const result = await res.json();
             setTimeout(() => fetchStatus(i), 4000);
         }
 
-        // Query the status of a host.
         async function fetchStatus(i) {
             const res = await fetch(`/status/${i}`);
             const data = await res.json();
+
             document.getElementById(`status-${i}`).textContent = data.online ? '🟢 Online' : '🔴 Offline';
             document.getElementById(`btn-${i}`).textContent = data.online ? 'Shutdown' : 'Wake up';
+            
+            const rebootBtn = document.getElementById(`reboot-${i}`);
+            if (rebootBtn) {
+                rebootBtn.classList.toggle("d-none", !data.online);
+            }
+
             document.getElementById(`info-${i}`).textContent = data.info;
         }
 
-        // Initial call to query the status of the hosts.
         function refreshAll() {
             for (let i = 0; i < {{ hosts|length }}; i++) {
                 fetchStatus(i);
@@ -120,7 +137,7 @@
         }
 
         refreshAll();
-        setInterval(refreshAll, 10000); // Query status every 10 seconds.
+        setInterval(refreshAll, 10000);
     </script>
     
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>

@@ -111,6 +111,16 @@ pip install eventlet==0.39.1
 > [!WARNING]  
 > If you want to wake up and shut down a computer, you should have both SSH installed on this computer and the SSH service must also be activated.
 
+## sudoers file
+
+In Linux, you must also allow the restart and shutdown in the `/etc/sudoers` file on your target so that this can be carried out without admin rights. You can use the command `sudo visudo` for this. Add the following content to this file:
+
+```
+<username>  ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/reboot
+```
+
+Please replace `<username>` with the username of the user you want to log in with via `ssh`. It is also important that there is a tab between the user name and the commands. The commands are separated from each other with a comma.
+
 ---
 
 # Configuration (host)

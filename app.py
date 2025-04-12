@@ -1,4 +1,3 @@
-# Eventlet muss ganz oben importiert werden, bevor Flask und andere Module.
 import eventlet
 eventlet.monkey_patch()
 
@@ -13,12 +12,10 @@ import secrets
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
 
-# SocketIO für WebSockets
 socketio = SocketIO(app, async_mode='eventlet')
 
-# Erstelle Host-Objekte
 host_objects = [Host(**h) for h in HOSTS]
-host_status = [None] * len(host_objects)  # Status der Hosts initialisieren
+host_status = [None] * len(host_objects)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -26,16 +23,13 @@ def login():
         user = request.form['username']
         pwd = request.form['password']
 
-        # Prüfen, ob der Benutzer existiert und das Passwort übereinstimmt
         if user in USERS:
-            # Falls das Passwort gehasht ist
             stored_password = USERS[user]
             if stored_password.startswith('$2b$'):  # bcrypt hash check
                 if bcrypt.checkpw(pwd.encode('utf-8'), stored_password.encode('utf-8')):
                     session['user'] = user
                     return redirect('/')
             else:
-                # Wenn es kein Hash ist, das Passwort direkt vergleichen (für unverschlüsselte Passwörter)
                 if stored_password == pwd:
                     session['user'] = user
                     return redirect('/')
@@ -60,7 +54,7 @@ def index():
             "mac": host.mac,
             "ssh_user": host.ssh_user,
             "ssh_password": host.ssh_password,
-            "has_ssh": bool(host.ssh_user and (host.ssh_key_path or host.ssh_password)),  # Prüfen, ob SSH-Daten vorhanden
+            "has_ssh": bool(host.ssh_user and (host.ssh_key_path or host.ssh_password)),
         }
         host_data.append(host_info)
 
@@ -77,14 +71,28 @@ def status(idx):
 @app.route('/action/<int:idx>', methods=['POST'])
 def action(idx):
     host = host_objects[idx]
-    if host.is_online():
-        host.shutdown()
-        return jsonify({'action': 'shutdown'})
-    else:
-        host.wake()
-        return jsonify({'action': 'wake'})
+    action_type = request.json.get("action")
 
-# Überprüft die Hosts alle 5 Sekunden
+    if action_type == "wake":
+        if not host.is_online():
+            host.wake()
+            return jsonify({'action': 'wake'})
+        return jsonify({'error': 'Host already online'})
+
+    if action_type == "shutdown":
+        if host.is_online():
+            host.shutdown()
+            return jsonify({'action': 'shutdown'})
+        return jsonify({'error': 'Host offline'})
+
+    if action_type == "reboot":
+        if host.is_online():
+            host.reboot()
+            return jsonify({'action': 'reboot'})
+        return jsonify({'error': 'Host offline'})
+
+    return jsonify({'error': 'Invalid action'})
+
 def monitor_hosts():
     while True:
         for idx, host in enumerate(host_objects):
@@ -101,9 +109,7 @@ def monitor_hosts():
                 print(f"Error checking host {host.name}: {e}")
         time.sleep(5)
 
-# Startet den Monitor-Thread
 socketio.start_background_task(target=monitor_hosts)
 
-# Startet die Flask-Anwendung
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
