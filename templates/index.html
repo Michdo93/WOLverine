@@ -30,6 +30,26 @@
             bottom: 0;
             width: 100%;
         }
+
+        /* Loading overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.3rem;
+        }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -61,7 +81,8 @@
                         {% if host.has_ssh %}
                             <div class="d-flex gap-2">
                                 <button onclick="performAction({{ idx }}, 'main')" id="btn-{{ idx }}" class="btn btn-primary">Loading...</button>
-                                <button onclick="performAction({{ idx }}, 'reboot')" id="reboot-{{ idx }}" class="btn btn-warning d-none">Reboot</button>
+                                <button onclick="performAction({{ idx }}, 'reboot')" id="reboot-{{ idx }}" class="btn btn-warning d-none">🔁 Reboot</button>
+                                <button onclick="performAction({{ idx }}, 'wake')" id="wake-{{ idx }}" class="btn btn-success d-none">💤 Wake up</button>
                             </div>
                         {% endif %}
                         
@@ -69,6 +90,13 @@
                     </div>
                 </div>
             {% endfor %}
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="overlay">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
         </div>
     </div>
 
@@ -90,19 +118,24 @@
             if (data.has_ssh) {
                 const mainBtn = document.getElementById(`btn-${data.idx}`);
                 const rebootBtn = document.getElementById(`reboot-${data.idx}`);
-                if (mainBtn) mainBtn.textContent = data.online ? 'Shutdown' : 'Wake up';
+                const wakeBtn = document.getElementById(`wake-${data.idx}`);
+                if (mainBtn) mainBtn.textContent = data.online ? '🛑 Shutdown' : '💤 Wake up';
                 if (rebootBtn) rebootBtn.classList.toggle("d-none", !data.online);
+                if (wakeBtn) wakeBtn.classList.toggle("d-none", data.online);
             }
 
             document.getElementById(`info-${data.idx}`).textContent = data.info;
         });
 
         async function performAction(i, type = 'main') {
-            let action = type === 'reboot' ? 'reboot' : null;
+            // Show the loading overlay
+            document.getElementById("loading-overlay").style.display = "flex";
+
+            let action = type === 'reboot' ? 'reboot' : type === 'wake' ? 'wake' : null;
 
             if (!action) {
                 const label = document.getElementById(`btn-${i}`).textContent;
-                action = label.toLowerCase().includes("shutdown") ? "shutdown" : "wake";
+                action = label.includes("🛑") ? "shutdown" : "wake";
             }
 
             const res = await fetch(`/action/${i}`, {
@@ -112,6 +145,12 @@
             });
 
             const result = await res.json();
+
+            // Hide the loading overlay after 4 seconds or when response is received
+            setTimeout(() => {
+                document.getElementById("loading-overlay").style.display = "none";
+            }, 4000);
+
             setTimeout(() => fetchStatus(i), 4000);
         }
 
@@ -120,11 +159,16 @@
             const data = await res.json();
 
             document.getElementById(`status-${i}`).textContent = data.online ? '🟢 Online' : '🔴 Offline';
-            document.getElementById(`btn-${i}`).textContent = data.online ? 'Shutdown' : 'Wake up';
+            document.getElementById(`btn-${i}`).textContent = data.online ? '🛑 Shutdown' : '💤 Wake up';
             
             const rebootBtn = document.getElementById(`reboot-${i}`);
             if (rebootBtn) {
                 rebootBtn.classList.toggle("d-none", !data.online);
+            }
+
+            const wakeBtn = document.getElementById(`wake-${i}`);
+            if (wakeBtn) {
+                wakeBtn.classList.toggle("d-none", data.online);
             }
 
             document.getElementById(`info-${i}`).textContent = data.info;

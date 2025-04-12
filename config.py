@@ -6,9 +6,8 @@ HOSTS = [
     {
         'name': 'localhost',
         'ip': '127.0.0.1',
-        'mac': '00:11:22:aa:bb:cc',
-        'ssh_user': None,
-        'ssh_password': None,
-        'ssh_key_path': None,
+        'mac': '5e:a0:a5:07:f0:8d',
+        'ssh_user': "ubuntu",
+        'ssh_password': "linux",
     },
 ]
