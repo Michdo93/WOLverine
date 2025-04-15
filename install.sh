@@ -10,6 +10,15 @@ fi
 CURRENT_DIR=$(pwd)
 USER=$(whoami)
 
+# Ensure SQLite is installed
+echo "Checking for SQLite..."
+if ! command -v sqlite3 &> /dev/null; then
+    echo "SQLite is not installed. Installing..."
+    apt update && apt install -y sqlite3 libsqlite3-dev
+else
+    echo "SQLite is already installed."
+fi
+
 # Ensure that requirements.txt exists
 if [ ! -f "$CURRENT_DIR/requirements.txt" ]; then
     echo "requirements.txt not found. Please make sure the file exists."

@@ -10,19 +10,19 @@
 
 ## 📖 The Story Behind WOLverine
 
-In the world of X-Men, Wolverine (a.k.a. Logan) doesn’t just fight the forces of evil, but also races against time, always looking for ways to save the world in the most desperate situations. Just like Wolverine, who regenerates with every battle, **WOLverine** brings the power of **Wake-on-LAN** into the world of technology – a superpower that allows your computer to awaken from the deep sleep and resume action, just when you need it most.
+In the world of X-Men, Wolverine (a.k.a. Logan) doesn`t just fight the forces of evil, but also races against time, always looking for ways to save the world in the most desperate situations. Just like Wolverine, who regenerates with every battle, **WOLverine** brings the power of **Wake-on-LAN** into the world of technology – a superpower that allows your computer to awaken from the deep sleep and resume action, just when you need it most.
 
-Imagine: you’re the “X-Man” of your network. You’re in the middle of the battle, your server’s screen is dead, it’s in sleep mode, and work is piling up. But no need to worry! Like Wolverine with his indestructible healing factor, you spring into action, and with just one click or command, you wake up the machine from its dark slumber – and it’s ready to go!
+Imagine: you`re the “X-Man” of your network. You`re in the middle of the battle, your server`s screen is dead, it`s in sleep mode, and work is piling up. But no need to worry! Like Wolverine with his indestructible healing factor, you spring into action, and with just one click or command, you wake up the machine from its dark slumber – and it`s ready to go!
 
 ## 💪 What Makes WOLverine So Powerful?
 
 **Wake-on-LAN** is like the "healing factor" for your devices. Typically, most devices in your network are asleep to save power. But what if you want to wake them up remotely to get work done? **WOLverine** makes it possible! With this superpower, you can wake up devices from anywhere, without needing physical access to them.
 
-Whether you’re working on a project in your studio or managing a fleet of machines in a data center – **WOLverine** is always ready to help by allowing you to wake up your machines quickly and efficiently, all without having to be there in person.
+Whether you`re working on a project in your studio or managing a fleet of machines in a data center – **WOLverine** is always ready to help by allowing you to wake up your machines quickly and efficiently, all without having to be there in person.
 
 ## ✨ How Does the Magic of WOLverine Work?
 
-The magic behind **WOLverine** lies in **Wake-on-LAN** technology, which allows you to wake up a device with a special "Magic Packet." Essentially, you send a specially formatted network packet (the "Magic Packet") to the target device, and voilà – it wakes up from its slumber. It’s a bit like Wolverine, who rises from the ashes after every battle.
+The magic behind **WOLverine** lies in **Wake-on-LAN** technology, which allows you to wake up a device with a special "Magic Packet." Essentially, you send a specially formatted network packet (the "Magic Packet") to the target device, and voilà – it wakes up from its slumber. It`s a bit like Wolverine, who rises from the ashes after every battle.
 
 ### 🪄 Step-by-Step:
 
@@ -36,7 +36,7 @@ The magic behind **WOLverine** lies in **Wake-on-LAN** technology, which allows 
 
 In a world full of computer networks where devices often fall into sleep mode, and their heroes (the administrators) are far away, **WOLverine** provides the solution. Why deal with the hassle of waking them up physically when you can remotely call them back to life, whenever you need?
 
-**WOLverine** is not just a name – it’s a philosophy. It’s the power to always be ready to bring your network out of the dark and into action when needed. Just like Wolverine, who comes back after every fight, you’re always prepared to return to the battle.
+**WOLverine** is not just a name – it`s a philosophy. It`s the power to always be ready to bring your network out of the dark and into action when needed. Just like Wolverine, who comes back after every fight, you`re always prepared to return to the battle.
 
 ---
 
@@ -62,12 +62,18 @@ What does this web application do?
 - **Shutdown**:
     - To shut down a PC, you must connect to this computer via `SSH` and shut it down.
     - The status of the computer then changes to `offline`.
-- **Shutdown**:
+- **Reboot**:
     - To reboot a PC, you must connect to this computer via `SSH` and reboot it.
     - The status of the computer then changes at first to `offline` and later again to `online`.
+- **Database**:
+    - A `SQLite` database is used so that `User`, `Host`, `Schedule` and `Stat` can be saved.
+- **Schedule**:
+    - With `Schedule`, actions such as `wake up`, `reboot` or `shutdown` can be carried out at any time.
 - **System Monitoring**:
     - Uptime, memory and CPU are monitored (if necessary via `SSH`).
     - In most cases, of course, this monitoring is done via `SSH`, as `SSH` would not be used for this on the localhost.
+- **Monitoring Stats**:
+    - `CPU`, `RAM` and `Ping` will be stored in a `SQLite` database with their associated `timestamp`.
 - **REST API**:
     - In addition to using a dashboard, the individual functions can also be operated via a `REST API`. This is what makes WOLverine so powerful.
     - The `REST API` is designed for `basic authentication`.
@@ -101,13 +107,31 @@ or manually with
 
 ```
 pip install Flask==3.0.3
+pip install Flask-SocketIO==5.5.1
+pip install Flask-HTTPAuth==4.8.0
+pip install Flask-SQLAlchemy==2.5.1
+pip install flask-cors==5.0.0
 pip install ping3==4.0.8
 pip install paramiko==2.6.0
 pip install wakeonlan==3.1.0
 pip install bcrypt==3.1.7
 pip install psutil==5.5.1
-pip install Flask-SocketIO==5.5.1
 pip install eventlet==0.39.1
+```
+
+## ⚙️ Install the database
+
+Next we want to make sure that `SQLite` is installed:
+
+```
+sudo apt update
+sudo apt install sqlite3 libsqlite3-dev -y
+```
+
+After we have installed `SQLite`, we want to create the database and its tables:
+
+```
+python3 create_db.py
 ```
 
 ---
@@ -131,106 +155,77 @@ In Linux, you must also allow the restart and shutdown in the `/etc/sudoers` fil
 <username>  ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/reboot
 ```
 
-Please replace `<username>` with the username of the user you want to log in with via `ssh`. It is also important that there is a tab between the user name and the commands. The commands are separated from each other with a comma.
+Please replace `<username>` with the username of the user you want to log in with via `ssh`. It is also important that there is a tab between the username and the commands. The commands are separated from each other with a comma.
 
 ---
 
 # 🧾 Configuration (host)
 
-The configuration can be edited in `</path/to/WOLverine>/config.py`. You also have to replace `</path/to/WOLverine>` with the `path` where you stored the application. In the configuration file, you can configure both the login for the web interface with multiple user accounts and multiple hosts including their information for WOL and SSH.
+Both new users and new hosts can be created, edited or deleted via the index page of the dashboard. For these tasks, however, you must be a user in the `Admin` role. A user in the `User` role can only perform host actions such as `Wake up`, `Reboot` or `Shutdown`, as well as view the `Systeminfo` of a host.
 
 ## 🔒 User authentication
 
-I can create several user accounts with passwords for the web interface in the configuration file. I can save the passwords hashed or in plain text.
+When the database is created during installation, a user with the role `Admin` is created by default. The default username is `admin` and the default password is `wolverine`. After installation, it is therefore recommended that you log in and change this password.
 
-### 🔓 Password (plain text)
+By clicking on the gray `User management` button at the top right next to the red `Logout` button, a user in the `Admin` role can switch to user management.
 
-As example a user with its password as plain text could be added like this:
+All users existing in the database, including the role, are listed in a table. The yellow `Edit` button can be used to edit a user and the red `Delete` button can be used to delete a user.
 
-```
-USERS = {
-    "admin": "password",
-}
-```
+Below the table there is a green `Add new user` button which can be used to create a new user.
 
-### 🔐 Password (hashed)
+In the creation or editing form, you can select a `Username`, a `Password` and the `Role` (`Admin` or `User`). The password is saved hashed in the database. If you do not assign a new password when editing a user, this password will not be overwritten.
 
-As example a user with hashed password could be added like this:
-
-```
-USERS = {
-    "admin": "$2b$12$dK3Gi9h81vRrgbQxqU6/fux8LTzUbSGyEPIjRnOpqLh3yvPCV/kHK",
-}
-```
-
-I have added a utility program called `hash_password.py` which can be used to generate hashed passwords. You can use it as follows:
-
-```
-python3 hash_password.py
-Enter your password: password
-Hashed password: $2b$12$dK3Gi9h81vRrgbQxqU6/fux8LTzUbSGyEPIjRnOpqLh3yvPCV/kHK
-```
 ## 🖥️ Host configuration
 
-A minimum configuration includes the name (possibly host name) of the computer, its IP address and its MAC address. This is required to determine whether a device is online or offline. Theoretically, you could now also use the MAC address to switch on a computer via WOL Magic Packet. However, we only want to offer this function to the user if they have also configured an SSH connection, as a computer can only be shut down again via SSH.
+A user in the `Admin` role can add a new host via the green `Add host` button at the top left of the dashboard. In each `host card` of a host, they can edit a host using the yellow `Edit` button and delete a host using the red `Delete` button.
 
-For example, a minimal configuration could look like this:
+A minimum configuration includes the `name` (possibly host name) of the computer, its `ip` address and its `mac` address. This is required to determine whether a device is online or offline. Theoretically, you could now also use the `mac` address to switch on a computer via `WOL Magic Packet`. However, we only want to offer this function to the user if they have also configured an `ssh` connection, as a computer can only be `shutdown` again via `SSH`.
+
+Theoretically assumed, a minimal configuration could look like this:
 
 ```
-HOSTS = [
-    {
-        'name': 'localhost',
-        'ip': '127.0.0.1',
-        'mac': '00:11:22:aa:bb:cc',
-        'ssh_user': None,
-        'ssh_password': None,
-        'ssh_key_path': None,
-    }
-]
+'name': 'localhost',
+'ip': '127.0.0.1',
+'mac': '00:11:22:aa:bb:cc',
+'ssh_user': None,
+'ssh_password': None,
+'ssh_key_path': None,
 ```
 
 Please change the `name`, the `ip` and the `mac` with your `name/hostname`, `ip` and `mac` address of your computer.
 
-Additional computers can easily be added here.
+With this configuration, you would only see whether a computer is online or not. This would be checked via a ping. To `wake up` a computer via `WOL` or to perform a `reboot` or a `shutdown` via `ssh`, an SSH connection must be configured. This can be password-based or key-based.
 
 ### 📡 SSH authentication
 
-The SSH connection makes it possible to shut down the computer. System monitoring is also possible here, which can be used to check the utilization of the computer. Since we have a button that toggles between `Wake Up` and `Shutdown`, Wake-on-LAN, i.e. sending a Magic Packet to start a computer, is also activated after configuring SSH. This button is only active because it must be able to toggle cleanly between `online` and `offline`, otherwise it can never perform the correct action (wake up or shutdown).
+The SSH connection makes it possible to `shutdown` or `reboot` the computer. System monitoring (`Systeminfo`) is also possible here, which can be used to check the utilization of the computer. Since we have a button that toggles between `Wake Up` and `Shutdown`, Wake-on-LAN, i.e. sending a Magic Packet to `wake up` a computer, is also activated after configuring `SSH`. This button is only active because it must be able to toggle cleanly between `online` and `offline`, otherwise it can never perform the correct action (`wake up` or `shutdown`).
 
-However, an SSH connection can be password-based or key-based (private and public key). Accordingly, you can configure either one or the other. I recommend the key-based procedure, as otherwise the user password is saved in plain text in the configuration.
+However, an SSH connection can be `password-based` or `key-based` (`private key` and `public key`). Accordingly, you can configure either one or the other. I recommend the `key-based` procedure, as otherwise the user password is saved in plain text in the database.
 
 #### 🔑 Password-based
 
-The following is an example of how a password-based SSH connection can be established.
+The following is an example of how a `password-based` `SSH` connection can be established:
 
 ```
-HOSTS = [
-    {
-        'name': 'localhost',
-        'ip': '127.0.0.1',
-        'mac': '00:11:22:aa:bb:cc',
-        'ssh_user': 'ubuntu',
-        'ssh_password': 'linux',
-    }
-]
+'name': 'localhost',
+'ip': '127.0.0.1',
+'mac': '00:11:22:aa:bb:cc',
+'ssh_user': 'ubuntu',
+'ssh_password': 'linux',
 ```
 
-Please change the `name`, the `ip` and the `mac` with your `name/hostname`, `ip` and `mac` address of your computer. You should also change the user name (`ssu_user`) and password (`ssh_password`) for SSH.
+Please change the `name`, the `ip` and the `mac` with your `name/hostname`, `ip` and `mac` address of your computer. You should also change the username (`ssu_user`) and password (`ssh_password`) for `SSH`.
 
 #### 🗝️ Key-based (recommended)
 
-The following is an example of how a key-based SSH connection can be established.
+The following is an example of how a `key-based` `SSH` connection can be established:
 
 ```
-HOSTS = [
-    {
-        'name': 'localhost',
-        'ip': '127.0.0.1',
-        'mac': '00:11:22:aa:bb:cc',
-        'ssh_user': 'ubuntu',
-        'ssh_key_path': '/home/ubuntu/.ssh/id_rsa',
-    }
-]
+'name': 'localhost',
+'ip': '127.0.0.1',
+'mac': '00:11:22:aa:bb:cc',
+'ssh_user': 'ubuntu',
+'ssh_key_path': '/home/ubuntu/.ssh/id_rsa',
 ```
 
 ##### 🛠️ Generate SSH key (if not already available):
@@ -283,9 +278,11 @@ It is better to use a `system service`. I would also recommend using `nginx` and
 
 ## 🧱 System service
 
+If you have executed the `install.sh` script, the following steps are not necessary.
+
 ### 📝 Create the systemd service file
 
-Create a new file, e.g. wolverine.service, in the /etc/systemd/system/ directory:
+Create a new file, e.g. `wolverine.service`, in the `/etc/systemd/system/` directory:
 
 ```
 sudo nano /etc/systemd/system/wolverine.service
@@ -329,6 +326,10 @@ sudo systemctl enable wolverine.service
 
 # 📡 REST API Overview
 
+Generally speaking, administrative tasks are not part of the `REST API`. A user in the `Admin` role may create new hosts, edit hosts or delete hosts. A user in the `User` role may only `Wake up`, `Reboot` or `Shutdown` hosts. An `Admin` may also create new `Users` or edit other `Users`. However, a `User` may also create, edit or delete `Schedule` tasks and actions. Users may also view `Systeminfo`. The `REST API` is therefore only allowed to do what a `User` is allowed to do.
+
+This restricts the `REST API` a little, but also makes it a little more secure.
+
 ## 🔍 GET Endpoints
 
 | Endpoint                                | Description                                                                 |
@@ -353,7 +354,7 @@ sudo systemctl enable wolverine.service
 ## 🧪 Testing the REST API
 
 Use a tool like **Postman** or **cURL** to test the endpoints.  
-Make sure to use **Basic Authentication** with a valid `username` and `password` from your `config.py`.
+Make sure to use **Basic Authentication** with a valid `username` and `password` stored in the database.
 
 ### ✅ Example GET request with cURL
 

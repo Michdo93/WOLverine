@@ -15,8 +15,8 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#"><img src="/static/wolverine.webp" alt="Wolverine Logo"></a>
-            <a class="navbar-brand" href="#">WOLverine</a>
+            <a class="navbar-brand" href="{{ url_for('index') }}"><img src="/static/wolverine.webp" alt="Wolverine Logo"></a>
+            <a class="navbar-brand" href="{{ url_for('index') }}">WOLverine</a>            
             <div class="ms-auto">
                 {% if session.role == 'admin' %}
                 <a href="/users" class="btn btn-secondary ms-2">User management</a>
