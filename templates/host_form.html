@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Host{% endblock %}
+
+{% block content %}
+<h2>{{ action }} Host</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label for="name">Name *</label>
+        <input type="text" class="form-control" name="name" id="name" required value="{{ host.name if host else '' }}">
+    </div>
+    <div class="mb-3">
+        <label for="ip">IP Address *</label>
+        <input type="text" class="form-control" name="ip" id="ip" required value="{{ host.ip if host else '' }}">
+    </div>
+    <div class="mb-3">
+        <label for="mac">MAC Address *</label>
+        <input type="text" class="form-control" name="mac" id="mac" required value="{{ host.mac if host else '' }}">
+    </div>
+    <div class="mb-3">
+        <label for="ssh_user">SSH Username</label>
+        <input type="text" class="form-control" name="ssh_user" id="ssh_user" value="{{ host.ssh_user if host else '' }}">
+    </div>
+    <div class="mb-3">
+        <label for="ssh_password">SSH Password</label>
+        <input type="password" class="form-control" name="ssh_password" id="ssh_password" value="{{ host.ssh_password if host else '' }}">
+    </div>
+    <div class="mb-3">
+        <label for="ssh_key_path">SSH Key Path</label>
+        <input type="text" class="form-control" name="ssh_key_path" id="ssh_key_path" value="{{ host.ssh_key_path if host else '' }}">
+    </div>
+    <button type="submit" class="btn btn-primary">{{ action }}</button>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+</form>
+
+<script>
+    // Nur eins von beiden zulassen
+    const pw = document.getElementById("ssh_password");
+    const key = document.getElementById("ssh_key_path");
+
+    pw.addEventListener("input", () => {
+        if (pw.value) key.disabled = true;
+        else key.disabled = false;
+    });
+
+    key.addEventListener("input", () => {
+        if (key.value) pw.disabled = true;
+        else pw.disabled = false;
+    });
+</script>
+{% endblock %}

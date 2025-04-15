@@ -9,7 +9,7 @@ import os
 import tempfile
 import textwrap
 
-class Host:
+class HostClient:
     def __init__(self, name, ip, mac, ssh_user, ssh_password=None, ssh_key_path=None):
         self.name = name
         self.ip = ip

@@ -20,6 +20,8 @@ fi
 echo "Installing Python dependencies..."
 python3 -m pip install -r "$CURRENT_DIR/requirements.txt"
 
+python3 create_db.py
+
 # Create the systemd service file
 SERVICE_FILE="/etc/systemd/system/wolverine.service"
 
