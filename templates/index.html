@@ -14,30 +14,30 @@
 <div class="row">
     {% for host in hosts %}
     {% set idx = host.id %}
-        <div class="col-md-4 mb-4">
-            <div class="host-card">
-                <h3>{{ host.name }}</h3>
-                <p>IP address: {{ host.ip }}</p>
-                <p>Status: <span id="status-{{ idx }}">🔄 Checking...</span></p>
+    <div class="col-md-4 mb-4">
+        <div class="host-card">
+            <h3>{{ host.name }}</h3>
+            <p>IP address: {{ host.ip }}</p>
+            <p>Status: <span id="status-{{ idx }}">🔄 Checking...</span></p>
 
-                {% if host.ssh_user %}
-                <div class="d-flex gap-2">
-                    <button onclick="performAction({{ idx }}, 'main')" id="btn-{{ idx }}" class="btn btn-primary">Loading...</button>
-                    <button onclick="performAction({{ idx }}, 'reboot')" id="reboot-{{ idx }}" class="btn btn-warning d-none">🔁 Reboot</button>
-                    <button onclick="performAction({{ idx }}, 'wake')" id="wake-{{ idx }}" class="btn btn-success d-none">💤 Wake up</button>
-                </div>
-                {% endif %}
-
-                <pre id="info-{{ idx }}"></pre>
-                {% if session.role == 'admin' %}
-                <div class="d-flex gap-2 mt-2">
-                    <a href="{{ url_for('edit_host', host_id=host.id) }}" class="btn btn-warning">✏️ Edit</a>
-                    <form method="POST" action="{{ url_for('delete_host', host_id=host.id) }}" onsubmit="return confirm('Delete host {{ host.name }}?');">
-                        <button type="submit" class="btn btn-danger">🗑️ Delete</button>
-                    </form>
-                </div>
-                {% endif %}
+            {% if host.ssh_user %}
+            <div class="d-flex gap-2">
+                <button onclick="performAction({{ idx }}, 'main')" id="btn-{{ idx }}" class="btn">Loading...</button>
+                <button onclick="performAction({{ idx }}, 'reboot')" id="reboot-{{ idx }}" class="btn btn-warning d-none">🔁 Reboot</button>
             </div>
+            {% endif %}
+
+            <pre id="info-{{ idx }}"></pre>
+
+            {% if session.role == 'admin' %}
+            <div class="d-flex gap-2 mt-2">
+                <a href="{{ url_for('edit_host', host_id=host.id) }}" class="btn btn-warning">✏️ Edit</a>
+                <form method="POST" action="{{ url_for('delete_host', host_id=host.id) }}" onsubmit="return confirm('Delete host {{ host.name }}?');">
+                    <button type="submit" class="btn btn-danger">🗑️ Delete</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
     </div>
     {% endfor %}
 </div>
@@ -48,7 +48,6 @@
         <span class="visually-hidden">Loading...</span>
     </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
@@ -64,20 +63,25 @@ socket.on('status_update', (data) => {
     if (data.has_ssh) {
         const mainBtn = document.getElementById(`btn-${data.idx}`);
         const rebootBtn = document.getElementById(`reboot-${data.idx}`);
-        const wakeBtn = document.getElementById(`wake-${data.idx}`);
-        if (mainBtn) mainBtn.textContent = data.online ? '🛑 Shutdown' : '💤 Wake up';
-        if (rebootBtn) rebootBtn.classList.toggle("d-none", !data.online);
-        if (wakeBtn) wakeBtn.classList.toggle("d-none", data.online);
+
+        if (mainBtn) {
+            mainBtn.textContent = data.online ? '🛑 Shutdown' : '💤 Wake up';
+            mainBtn.classList.remove('btn-success', 'btn-danger');
+            mainBtn.classList.add(data.online ? 'btn-danger' : 'btn-success');
+        }
+
+        if (rebootBtn) {
+            rebootBtn.classList.toggle("d-none", !data.online);
+        }
     }
 
     document.getElementById(`info-${data.idx}`).textContent = data.info;
 });
 
 async function performAction(i, type = 'main') {
-    // Show the loading overlay
     document.getElementById("loading-overlay").style.display = "flex";
 
-    let action = type === 'reboot' ? 'reboot' : type === 'wake' ? 'wake' : null;
+    let action = type === 'reboot' ? 'reboot' : null;
 
     if (!action) {
         const label = document.getElementById(`btn-${i}`).textContent;
@@ -91,11 +95,9 @@ async function performAction(i, type = 'main') {
     });
 
     console.log("Response status:", res.status);
-
     const result = await res.json();
     console.log("Response data:", result);
 
-    // Hide the loading overlay after 4 seconds or when response is received
     setTimeout(() => {
         document.getElementById("loading-overlay").style.display = "none";
     }, 4000);
@@ -107,24 +109,27 @@ async function fetchStatus(i) {
     const res = await fetch(`/status/${i}`);
     const data = await res.json();
 
-    document.getElementById(`status-${i}`).textContent = data.online ? '🟢 Online' : '🔴 Offline';
-    document.getElementById(`btn-${i}`).textContent = data.online ? '🛑 Shutdown' : '💤 Wake up';
-    
+    const statusEl = document.getElementById(`status-${i}`);
+    const btn = document.getElementById(`btn-${i}`);
     const rebootBtn = document.getElementById(`reboot-${i}`);
-    if (rebootBtn) {
-        rebootBtn.classList.toggle("d-none", !data.online);
+
+    if (statusEl) statusEl.textContent = data.online ? '🟢 Online' : '🔴 Offline';
+
+    if (btn) {
+        btn.textContent = data.online ? '🛑 Shutdown' : '💤 Wake up';
+        btn.classList.remove('btn-success', 'btn-danger');
+        btn.classList.add(data.online ? 'btn-danger' : 'btn-success');
     }
 
-    const wakeBtn = document.getElementById(`wake-${i}`);
-    if (wakeBtn) {
-        wakeBtn.classList.toggle("d-none", data.online);
+    if (rebootBtn) {
+        rebootBtn.classList.toggle("d-none", !data.online);
     }
 
     document.getElementById(`info-${i}`).textContent = data.info;
 }
 
 const hostIds = [ {% for host in hosts %}{{ host.id }}, {% endfor %} ];
-    
+
 function refreshAll() {
     for (let i = 0; i < hostIds.length; i++) {
         fetchStatus(hostIds[i]);
@@ -134,5 +139,6 @@ function refreshAll() {
 refreshAll();
 setInterval(refreshAll, 10000);
 </script>
+
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
 {% endblock %}
