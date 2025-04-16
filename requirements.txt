@@ -9,3 +9,4 @@ wakeonlan==3.1.0
 bcrypt==3.1.7
 psutil==5.5.1
 eventlet==0.39.1
+APScheduler==3.11.0

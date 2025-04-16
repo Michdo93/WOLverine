@@ -29,6 +29,16 @@
 
             <pre id="info-{{ idx }}"></pre>
 
+            <div id="schedules-{{ idx }}" class="schedule-list mt-2">
+                <strong>Scheduled actions:</strong>
+                <ul class="list-unstyled mb-2"></ul>
+            </div>
+            
+            <button class="btn btn-outline-primary btn-sm" onclick="openScheduleModal({{ idx }})">
+                📅 Schedule
+            </button>
+            
+
             {% if session.role == 'admin' %}
             <div class="d-flex gap-2 mt-2">
                 <a href="{{ url_for('edit_host', host_id=host.id) }}" class="btn btn-warning">✏️ Edit</a>
@@ -48,6 +58,37 @@
         <span class="visually-hidden">Loading...</span>
     </div>
 </div>
+
+<!-- Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="scheduleForm" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scheduleModalLabel">Add Schedule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="device_id" id="modal-device-id">
+                <div class="mb-3">
+                    <label for="action" class="form-label">Action</label>
+                    <select name="action" id="modal-action" class="form-select">
+                        <option value="wake">Wake</option>
+                        <option value="shutdown">Shutdown</option>
+                        <option value="reboot">Reboot</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="datetime" class="form-label">Date & Time</label>
+                    <input type="datetime-local" name="datetime" id="modal-datetime" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>  
 {% endblock %}
 
 {% block scripts %}
@@ -139,6 +180,124 @@ function refreshAll() {
 refreshAll();
 setInterval(refreshAll, 10000);
 </script>
-
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script>
+let editingScheduleId = null;
+
+function getLocalDatetimeString(utcString) {
+    const utcDate = new Date(utcString);  // z. B. "2025-04-16T12:27:00Z"
+    
+    // Zeit in lokale Zeitzone umrechnen
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const local = new Date(utcDate.toLocaleString("en-US", { timeZone: tz }));
+
+    const year = local.getFullYear();
+    const month = String(local.getMonth() + 1).padStart(2, '0');
+    const day = String(local.getDate()).padStart(2, '0');
+    const hour = String(local.getHours()).padStart(2, '0');
+    const minute = String(local.getMinutes()).padStart(2, '0');
+
+    return `${year}-${month}-${day}T${hour}:${minute}`;  // z. B. "2025-04-16T14:27"
+}
+
+function openScheduleModal(deviceId) {
+    editingScheduleId = null;
+    document.getElementById("scheduleModalLabel").textContent = "Add Schedule";
+    document.getElementById("modal-device-id").value = deviceId;
+    document.getElementById("modal-action").value = "wake";
+
+    const now = new Date();
+    const localISO = now
+        .toLocaleString("sv-SE", {
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        })
+        .replace(" ", "T")
+        .slice(0, 16);
+
+    document.getElementById("modal-datetime").value = localISO;
+    new bootstrap.Modal(document.getElementById("scheduleModal")).show();
+}
+
+function editSchedule(scheduleId, deviceId) {
+    fetch(`/schedules/${deviceId}`)
+        .then(res => res.json())
+        .then(schedules => {
+            const sched = schedules.find(s => s.id === scheduleId);
+            if (!sched) return alert("Schedule not found");
+
+            editingScheduleId = scheduleId;
+            document.getElementById("modal-device-id").value = deviceId;
+            document.getElementById("modal-action").value = sched.action;
+            document.getElementById("modal-datetime").value = getLocalDatetimeString(sched.datetime);
+            document.getElementById("scheduleModalLabel").textContent = "Edit Schedule";
+
+            new bootstrap.Modal(document.getElementById("scheduleModal")).show();
+        });
+}
+
+document.getElementById("scheduleForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const device_id = document.getElementById("modal-device-id").value;
+    const action = document.getElementById("modal-action").value;
+    const datetime = document.getElementById("modal-datetime").value;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const payload = { device_id, action, datetime, timezone };
+
+    let url = "/schedules";
+    let method = "POST";
+
+    if (editingScheduleId) {
+        url = `/schedules/${editingScheduleId}`;
+        method = "PUT";
+    }
+
+    const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        bootstrap.Modal.getInstance(document.getElementById("scheduleModal")).hide();
+        editingScheduleId = null;
+        loadSchedules(device_id);
+    }
+});
+
+async function loadSchedules(deviceId) {
+    const res = await fetch(`/schedules/${deviceId}`);
+    const schedules = await res.json();
+    const container = document.querySelector(`#schedules-${deviceId} ul`);
+    container.innerHTML = '';
+
+    schedules.forEach(s => {
+        const local = new Date(s.datetime).toLocaleString(undefined, {
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
+
+        const li = document.createElement("li");
+        li.innerHTML = `${s.action} @ ${local} 
+            <button onclick="editSchedule(${s.id}, ${deviceId})" class="btn btn-sm btn-outline-secondary ms-2">✏️</button>
+            <button onclick="deleteSchedule(${s.id}, ${deviceId})" class="btn btn-sm btn-outline-danger ms-2">🗑️</button>`;
+        container.appendChild(li);
+    });
+}
+
+async function deleteSchedule(id, deviceId) {
+    if (confirm("Delete this scheduled action?")) {
+        await fetch(`/schedules/${id}`, { method: "DELETE" });
+        loadSchedules(deviceId);
+    }
+}
+
+// Initial schedule load
+window.onload = () => {
+    document.querySelectorAll("[id^='schedules-']").forEach(el => {
+        const id = el.id.split("-")[1];
+        loadSchedules(id);
+    });
+};
+</script>    
 {% endblock %}

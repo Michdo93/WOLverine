@@ -11,6 +11,12 @@ from flask_cors import CORS
 from functools import wraps
 from extensions import db
 from utils.host_client import HostClient
+from datetime import datetime
+import pytz
+from uuid import uuid4
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
@@ -21,10 +27,18 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///wolverine.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
+scheduler = BackgroundScheduler(
+    jobstores={
+        'default': SQLAlchemyJobStore(url='sqlite:///jobs.db')  # oder dieselbe wie deine Haupt-DB, aber getrennt ist manchmal besser
+    },
+    timezone='UTC'  # oder deine Standard-TZ, aber du setzt ja eh lokalisiert
+)
+scheduler.start()
+
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
 #socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet', logger=True, engineio_logger=True)
 
-from models import User, Host
+from models import User, Host, Schedule, Stat
 
 # -------------------
 # Basic Auth Helpers
@@ -69,6 +83,9 @@ def require_admin(f):
 # Web Routes
 # -------------------
 
+# Dashboard
+
+# Login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -83,11 +100,13 @@ def login():
         return 'Login failed'
     return render_template('login.html')
 
+# Logout
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect('/login')
 
+# Dashboard/Index
 @app.route('/')
 def index():
     if 'user' not in session:
@@ -97,6 +116,7 @@ def index():
     
     return render_template('index.html', hosts=hosts, session=session)
 
+# Update Host-Card
 @app.route('/status/<int:idx>')
 def status(idx):
     host = db.session.get(Host, idx)
@@ -118,6 +138,7 @@ def status(idx):
         'info': client.get_info() if client.is_online() else ''
     })
 
+# Perform Action
 @app.route('/action/<int:idx>', methods=['POST'])
 def action(idx):
     host = db.session.get(Host, idx)
@@ -155,7 +176,9 @@ def action(idx):
 
     return jsonify({'error': 'Invalid action'}), 400
 
-# Users overview
+# User management
+
+# Users view
 @app.route('/users')
 def user_list():
     if 'user' not in session:
@@ -205,6 +228,8 @@ def delete_user(user_id):
     db.session.commit()
     flash("User deleted.")
     return redirect(url_for("user_list"))
+
+# Host Configuration
 
 # Create host
 @app.route("/hosts/create", methods=["GET", "POST"])
@@ -257,6 +282,91 @@ def delete_host(host_id):
     db.session.commit()
     flash("Host deleted.")
     return redirect(url_for("index"))
+
+# Scheduled tasks/actions
+
+# List scheduled tasks/actions
+@app.route('/schedules/<int:host_id>')
+def get_schedules_for_host(host_id):
+    schedules = Schedule.query.filter_by(device_id=host_id).order_by(Schedule.datetime).all()
+    return jsonify([{
+        'id': s.id,
+        'action': s.action,
+        'datetime': s.datetime.isoformat()
+    } for s in schedules])
+
+# Create Schedule
+@app.route('/schedules', methods=['POST'])
+def create_schedule():
+    data = request.get_json()
+    user_tz = pytz.timezone(data.get("timezone", "UTC"))
+
+    naive_local_dt = datetime.fromisoformat(data['datetime'])
+    localized = user_tz.localize(naive_local_dt)
+
+    new_schedule = Schedule(
+        device_id=data['device_id'],
+        action=data['action'],
+        datetime=localized
+    )
+    db.session.add(new_schedule)
+    db.session.commit()
+
+    scheduler.add_job(
+        func=execute_scheduled_action,
+        trigger=DateTrigger(run_date=localized.astimezone(pytz.utc)),
+        args=[new_schedule.id],
+        id=str(uuid4()),  # optional schedule.id als str()
+        replace_existing=True
+    )
+
+    return jsonify({'status': 'created'}), 201
+
+# Edit Schedule
+@app.route('/schedules/<int:schedule_id>', methods=['PUT'])
+def edit_schedule(schedule_id):
+    data = request.get_json()
+    schedule = Schedule.query.get_or_404(schedule_id)
+    user_tz = pytz.timezone(data.get("timezone", "UTC"))
+
+    naive_local_dt = datetime.fromisoformat(data['datetime'])
+    localized = user_tz.localize(naive_local_dt)
+
+    schedule.device_id = data['device_id']
+    schedule.action = data['action']
+    schedule.datetime = localized
+
+    db.session.commit()
+
+    job_id = f"schedule_{schedule.id}"
+    scheduler.remove_job(job_id=job_id)  # alten Job löschen
+    scheduler.add_job(
+        func=execute_scheduled_action,
+        trigger=DateTrigger(run_date=localized.astimezone(pytz.utc)),
+        args=[schedule.id],
+        id=job_id,
+        replace_existing=True
+    )
+
+    return jsonify({'status': 'updated'})
+
+# Delete Schedule
+@app.route('/schedules/<int:schedule_id>', methods=['DELETE'])
+def delete_schedule(schedule_id):
+    schedule = Schedule.query.get(schedule_id)
+    if not schedule:
+        return jsonify({'error': 'Schedule not found'}), 404
+    
+    job_id = f"schedule_{schedule.id}"
+    try:
+        scheduler.remove_job(job_id=job_id)
+    except Exception as e:
+        print(f"Warning: Job {job_id} not found or already removed – {e}")
+
+    db.session.delete(schedule)
+    db.session.commit()
+
+    return jsonify({'status': 'deleted'}), 200
 
 # -------------------
 # REST API Endpoints
@@ -417,6 +527,60 @@ def rest_reboot(name):
     return jsonify({'status': 'reboot sent'}), 200
 
 # -------------------
+# Scheduler
+# -------------------
+
+def execute_scheduled_action(schedule_id):
+    with app.app_context():
+        schedule = Schedule.query.get(schedule_id)
+        if not schedule:
+            print(f"Schedule ID {schedule_id} not found.")
+            return
+
+        host = Host.query.get(schedule.device_id)
+        if not host:
+            print(f"Host ID {schedule.device_id} not found.")
+            return
+
+        client = HostClient(
+            name=host.name,
+            ip=host.ip,
+            mac=host.mac,
+            ssh_user=host.ssh_user,
+            ssh_password=host.ssh_password,
+            ssh_key_path=host.ssh_key_path
+        )
+
+        action = schedule.action
+        print(f"Executing scheduled action: {action} for host {host.name}")
+
+        try:
+            if action == "wake":
+                if not client.is_online():
+                    client.wake()
+            elif action == "shutdown":
+                if client.is_online():
+                    client.shutdown()
+            elif action == "reboot":
+                if client.is_online():
+                    client.reboot()
+        except Exception as e:
+            print(f"Error executing {action} on {host.name}: {e}")
+
+def load_scheduled_jobs():
+    with app.app_context():
+        schedules = Schedule.query.all()
+        for schedule in schedules:
+            if schedule.datetime > datetime.utcnow():  # nur zukünftige Jobs
+                scheduler.add_job(
+                    func=execute_scheduled_action,
+                    trigger=DateTrigger(run_date=schedule.datetime),
+                    args=[schedule.id],
+                    id=f"schedule_{schedule.id}",
+                    replace_existing=True
+                )
+
+# -------------------
 # Host Monitoring
 # -------------------
 
@@ -452,6 +616,7 @@ def monitor_hosts():
             time.sleep(5)
 
 socketio.start_background_task(target=monitor_hosts)
+load_scheduled_jobs()
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
