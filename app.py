@@ -29,9 +29,9 @@ db.init_app(app)
 
 scheduler = BackgroundScheduler(
     jobstores={
-        'default': SQLAlchemyJobStore(url='sqlite:///jobs.db')  # oder dieselbe wie deine Haupt-DB, aber getrennt ist manchmal besser
+        'default': SQLAlchemyJobStore(url='sqlite:///jobs.db')
     },
-    timezone='UTC'  # oder deine Standard-TZ, aber du setzt ja eh lokalisiert
+    timezone='UTC'
 )
 scheduler.start()
 
@@ -316,7 +316,7 @@ def create_schedule():
         func=execute_scheduled_action,
         trigger=DateTrigger(run_date=localized.astimezone(pytz.utc)),
         args=[new_schedule.id],
-        id=str(uuid4()),  # optional schedule.id als str()
+        id=str(uuid4()),
         replace_existing=True
     )
 
@@ -339,7 +339,7 @@ def edit_schedule(schedule_id):
     db.session.commit()
 
     job_id = f"schedule_{schedule.id}"
-    scheduler.remove_job(job_id=job_id)  # alten Job löschen
+    scheduler.remove_job(job_id=job_id)
     scheduler.add_job(
         func=execute_scheduled_action,
         trigger=DateTrigger(run_date=localized.astimezone(pytz.utc)),
@@ -367,6 +367,24 @@ def delete_schedule(schedule_id):
     db.session.commit()
 
     return jsonify({'status': 'deleted'}), 200
+
+# Statistics
+
+# Get statistics
+@app.route('/stats/<int:device_id>')
+def stats(device_id):
+    # Last 50 etnries
+    stats = Stat.query.filter_by(device_id=device_id).order_by(Stat.timestamp.desc()).limit(50).all()
+    stats.reverse()  # Axis: From old to new
+
+    return jsonify([
+        {
+            'timestamp': stat.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            'cpu': stat.cpu,
+            'ram': stat.ram,
+            'ping': stat.ping
+        } for stat in stats
+    ])
 
 # -------------------
 # REST API Endpoints
@@ -568,17 +586,25 @@ def execute_scheduled_action(schedule_id):
             print(f"Error executing {action} on {host.name}: {e}")
 
 def load_scheduled_jobs():
-    with app.app_context():
-        schedules = Schedule.query.all()
-        for schedule in schedules:
-            if schedule.datetime > datetime.utcnow():  # nur zukünftige Jobs
-                scheduler.add_job(
-                    func=execute_scheduled_action,
-                    trigger=DateTrigger(run_date=schedule.datetime),
-                    args=[schedule.id],
-                    id=f"schedule_{schedule.id}",
-                    replace_existing=True
-                )
+    from sqlalchemy.exc import OperationalError
+
+    try:
+        with app.app_context():
+            schedules = Schedule.query.all()
+            for schedule in schedules:
+                if schedule.datetime > datetime.utcnow():
+                    scheduler.add_job(
+                        func=execute_scheduled_action,
+                        trigger=DateTrigger(run_date=schedule.datetime),
+                        args=[schedule.id],
+                        id=f"schedule_{schedule.id}",
+                        replace_existing=True
+                    )
+    except OperationalError as e:
+        print("Database error: The connection to the database could not be established. If you are still installing the program, ignore this error!")
+        print(f"Database error: {e}")
+    except Exception as e:
+        print(f"An error has occurred: {e}")
 
 # -------------------
 # Host Monitoring
@@ -590,6 +616,7 @@ def monitor_hosts():
 
         while True:
             hosts = Host.query.all()
+
             for host in hosts:
                 client = HostClient(
                     name=host.name,
@@ -602,21 +629,35 @@ def monitor_hosts():
 
                 try:
                     current = client.is_online()
-                    last_status = host_status.get(host.id)
 
-                    if last_status != current:
-                        host_status[host.id] = current
-                        socketio.emit('status_update', {
-                            'idx': host.id,
-                            'online': current,
-                            'info': client.get_info() if current else ''
-                        })
+                    stats = client.get_info() if current else {'CPU Load': None, 'Memory': None, 'Ping': current}
+
+                    new_stat = Stat(
+                        device_id=host.id,
+                        cpu=stats.get('CPU Load'),
+                        ram=stats.get('Memory'),
+                        ping=current
+                    )
+                    db.session.add(new_stat)
+                    db.session.commit()
+
+                    host_status[host.id] = current
+                    socketio.emit('status_update', {
+                        'idx': host.id,
+                        'online': current,
+                        'info': stats if current else ''
+                    })
+
                 except Exception as e:
-                    print(f"Error checking host {host.name}: {e}")
+                    print(f"[Error] {host.name}: {e}")
+
             time.sleep(5)
 
 socketio.start_background_task(target=monitor_hosts)
 load_scheduled_jobs()
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+    try:
+        socketio.run(app, host='0.0.0.0', port=5000)
+    except KeyboardInterrupt:
+        print("Server closed by KeyboardInterrupt.")

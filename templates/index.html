@@ -34,6 +34,9 @@
                 <ul class="list-unstyled mb-2"></ul>
             </div>
             
+            <button class="btn btn-outline-info btn-sm" onclick="openStatsModal({{ idx }})">
+                📈 Stats
+            </button>            
             <button class="btn btn-outline-primary btn-sm" onclick="openScheduleModal({{ idx }})">
                 📅 Schedule
             </button>
@@ -58,6 +61,23 @@
         <span class="visually-hidden">Loading...</span>
     </div>
 </div>
+
+<!-- Stats Modal -->
+<div class="modal fade" id="statsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h5 class="modal-title">Host Statistics</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <canvas id="cpuChart" height="100"></canvas>
+                <canvas id="ramChart" height="100"></canvas>
+                <canvas id="pingChart" height="100"></canvas>                
+            </div>
+        </div>
+    </div>
+</div>  
 
 <!-- Schedule Modal -->
 <div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalLabel" aria-hidden="true">
@@ -97,6 +117,28 @@
 <script>
 const socket = io.connect("http://localhost:5000");
 
+const displayOrder = [
+    "System",
+    "Hostname",
+    "Uptime",
+    "Memory",
+    "Memory_total",
+    "CPU Load"
+];
+
+function renderInfo(info) {
+    return displayOrder
+        .map(key => info[key] !== undefined
+            ? `<strong>${key}:</strong> ${info[key]}`
+            : null)
+        .filter(Boolean)
+        .join('<br>');
+}
+
+socket.on('connect', function() {
+    console.log('Connected to WebSocket');
+});
+
 socket.on('status_update', (data) => {
     console.log("Status update received:", data);
     document.getElementById(`status-${data.idx}`).textContent = data.online ? '🟢 Online' : '🔴 Offline';
@@ -116,7 +158,10 @@ socket.on('status_update', (data) => {
         }
     }
 
-    document.getElementById(`info-${data.idx}`).textContent = data.info;
+    const infoEl = document.getElementById(`info-${data.idx}`);
+    if (typeof data.info === 'object' && data.info !== null) {
+        infoEl.innerHTML = renderInfo(data.info);
+    }
 });
 
 async function performAction(i, type = 'main') {
@@ -153,6 +198,7 @@ async function fetchStatus(i) {
     const statusEl = document.getElementById(`status-${i}`);
     const btn = document.getElementById(`btn-${i}`);
     const rebootBtn = document.getElementById(`reboot-${i}`);
+    const infoEl = document.getElementById(`info-${i}`);
 
     if (statusEl) statusEl.textContent = data.online ? '🟢 Online' : '🔴 Offline';
 
@@ -166,7 +212,9 @@ async function fetchStatus(i) {
         rebootBtn.classList.toggle("d-none", !data.online);
     }
 
-    document.getElementById(`info-${i}`).textContent = data.info;
+    if (infoEl && typeof data.info === 'object' && data.info !== null) {
+        infoEl.innerHTML = renderInfo(data.info);
+    }
 }
 
 const hostIds = [ {% for host in hosts %}{{ host.id }}, {% endfor %} ];
@@ -185,9 +233,8 @@ setInterval(refreshAll, 10000);
 let editingScheduleId = null;
 
 function getLocalDatetimeString(utcString) {
-    const utcDate = new Date(utcString);  // z. B. "2025-04-16T12:27:00Z"
+    const utcDate = new Date(utcString);  // e.g. "2025-04-16T12:27:00Z"
     
-    // Zeit in lokale Zeitzone umrechnen
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     const local = new Date(utcDate.toLocaleString("en-US", { timeZone: tz }));
@@ -198,7 +245,7 @@ function getLocalDatetimeString(utcString) {
     const hour = String(local.getHours()).padStart(2, '0');
     const minute = String(local.getMinutes()).padStart(2, '0');
 
-    return `${year}-${month}-${day}T${hour}:${minute}`;  // z. B. "2025-04-16T14:27"
+    return `${year}-${month}-${day}T${hour}:${minute}`;  // e.g. "2025-04-16T14:27"
 }
 
 function openScheduleModal(deviceId) {
@@ -299,5 +346,115 @@ window.onload = () => {
         loadSchedules(id);
     });
 };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let cpuChart = null;
+let ramChart = null;
+let pingChart = null;
+let statsModalInstance = null;
+let currentDeviceId = null;
+let updateInterval = null;
+
+function renderAllCharts(data) {
+    const labels = data.map(entry => entry.timestamp);
+    const cpuData = data.map(entry => entry.cpu);
+    const ramData = data.map(entry => entry.ram);
+    const pingData = data.map(entry => entry.ping);
+
+    // CPU Chart
+    if (cpuChart) cpuChart.destroy();
+    cpuChart = new Chart(document.getElementById('cpuChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'CPU (%)',
+                data: cpuData,
+                borderColor: 'rgba(255, 99, 132, 1)',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            animation: false,
+            scales: {
+                y: { beginAtZero: true },
+                x: { ticks: { maxTicksLimit: 10 } }
+            }
+        }
+    });
+
+    // RAM Chart
+    if (ramChart) ramChart.destroy();
+    ramChart = new Chart(document.getElementById('ramChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'RAM (%)',
+                data: ramData,
+                borderColor: 'rgba(54, 162, 235, 1)',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            animation: false,
+            scales: {
+                y: { beginAtZero: true },
+                x: { ticks: { maxTicksLimit: 10 } }
+            }
+        }
+    });
+
+    // Ping Chart
+    if (pingChart) pingChart.destroy();
+    pingChart = new Chart(document.getElementById('pingChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Ping (ms)',
+                data: pingData,
+                borderColor: 'rgba(255, 206, 86, 1)',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            animation: false,
+            scales: {
+                y: { beginAtZero: true },
+                x: { ticks: { maxTicksLimit: 10 } }
+            }
+        }
+    });
+}
+
+function openStatsModal(deviceId) {
+    currentDeviceId = deviceId;
+    fetchStatsAndRender();
+
+    statsModalInstance = new bootstrap.Modal(document.getElementById("statsModal"));
+    statsModalInstance.show();
+
+    updateInterval = setInterval(fetchStatsAndRender, 10000);
+}
+
+function fetchStatsAndRender() {
+    if (!currentDeviceId) return;
+
+    fetch(`/stats/${currentDeviceId}`)
+        .then(res => res.json())
+        .then(data => renderAllCharts(data));
+}
+
+document.getElementById("statsModal").addEventListener("hidden.bs.modal", () => {
+    currentDeviceId = null;
+    clearInterval(updateInterval);
+    updateInterval = null;
+});
 </script>    
+
 {% endblock %}

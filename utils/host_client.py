@@ -8,6 +8,7 @@ import platform
 import os
 import tempfile
 import textwrap
+import json
 
 class HostClient:
     def __init__(self, name, ip, mac, ssh_user, ssh_password=None, ssh_key_path=None):
@@ -102,29 +103,31 @@ class HostClient:
                 memory = psutil.virtual_memory()
                 cpu = psutil.cpu_percent(interval=1)
 
-                info = (
-                    f"System: {platform.system()} {platform.release()}\n"
-                    f"Hostname: {socket.gethostname()}\n"
-                    f"Uptime: {uptime_string}\n"
-                    f"Memory: {memory.used // (1024 ** 2)} MB used / {memory.total // (1024 ** 2)} MB total\n"
-                    f"CPU Load: {cpu}%"
-                )
-                return info
+                return {
+                    'System': f"{platform.system()} {platform.release()}",
+                    'Hostname': socket.gethostname(),
+                    'Uptime': uptime_string,
+                    'Memory': memory.used // (1024 ** 2),
+                    'Memory_total': memory.total // (1024 ** 2),
+                    'CPU Load': cpu,
+                }
+
             elif self.ssh_user and (self.ssh_key_path or self.ssh_password):
                 psutil_script = textwrap.dedent("""
-                    import psutil, time, platform, socket
+                    import psutil, time, platform, socket, json
                     uptime_seconds = time.time() - psutil.boot_time()
                     uptime_string = time.strftime('%H:%M:%S', time.gmtime(uptime_seconds))
                     memory = psutil.virtual_memory()
                     cpu = psutil.cpu_percent(interval=1)
-                    info = (
-                        f"System: {platform.system()} {platform.release()}\\n"
-                        f"Hostname: {socket.gethostname()}\\n"
-                        f"Uptime: {uptime_string}\\n"
-                        f"Memory: {memory.used // (1024 ** 2)} MB used / {memory.total // (1024 ** 2)} MB total\\n"
-                        f"CPU Load: {cpu}%"
-                    )
-                    print(info)
+                    info = {
+                        "System": f"{platform.system()} {platform.release()}",
+                        "Hostname": socket.gethostname(),
+                        "Uptime": uptime_string,
+                        "Memory": memory.used // (1024 ** 2),
+                        "Memory_total": memory.total // (1024 ** 2),
+                        "CPU Load": cpu,
+                    }
+                    print(json.dumps(info))
                 """)
 
                 ssh = paramiko.SSHClient()
@@ -153,10 +156,10 @@ class HostClient:
                 ssh.close()
 
                 if error:
-                    return f"Remote error:\n{error}"
-                return output or "No output received from remote script."
+                    return {"error": error}
+                return json.loads(output) if output else {"error": "No output received"}
 
-            return "No SSH access available"
+            return {"error": "No SSH access available"}
 
         except Exception as e:
-            return f"Error: {e}"
+            return {"error": str(e)}
