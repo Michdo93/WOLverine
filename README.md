@@ -12,7 +12,7 @@
 
 In the world of X-Men, Wolverine (a.k.a. Logan) doesn`t just fight the forces of evil, but also races against time, always looking for ways to save the world in the most desperate situations. Just like Wolverine, who regenerates with every battle, **WOLverine** brings the power of **Wake-on-LAN** into the world of technology – a superpower that allows your computer to awaken from the deep sleep and resume action, just when you need it most.
 
-Imagine: you`re the “X-Man” of your network. You`re in the middle of the battle, your server`s screen is dead, it is in sleep mode, and work is piling up. But no need to worry! Like Wolverine with his indestructible healing factor, you spring into action, and with just one click or command, you wake up the machine from its dark slumber – and it`s ready to go!
+Imagine: you are the “X-Man” of your network. You are in the middle of the battle, your server's screen is dead, it is in sleep mode, and work is piling up. But no need to worry! Like Wolverine with his indestructible healing factor, you spring into action, and with just one click or command, you wake up the machine from its dark slumber – and it is ready to go!
 
 ## 💪 What Makes WOLverine So Powerful?
 
