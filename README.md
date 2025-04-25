@@ -12,7 +12,7 @@
 
 In the world of X-Men, Wolverine (a.k.a. Logan) doesn`t just fight the forces of evil, but also races against time, always looking for ways to save the world in the most desperate situations. Just like Wolverine, who regenerates with every battle, **WOLverine** brings the power of **Wake-on-LAN** into the world of technology – a superpower that allows your computer to awaken from the deep sleep and resume action, just when you need it most.
 
-Imagine: you`re the “X-Man” of your network. You`re in the middle of the battle, your server`s screen is dead, it`s in sleep mode, and work is piling up. But no need to worry! Like Wolverine with his indestructible healing factor, you spring into action, and with just one click or command, you wake up the machine from its dark slumber – and it`s ready to go!
+Imagine: you`re the “X-Man” of your network. You`re in the middle of the battle, your server`s screen is dead, it is in sleep mode, and work is piling up. But no need to worry! Like Wolverine with his indestructible healing factor, you spring into action, and with just one click or command, you wake up the machine from its dark slumber – and it`s ready to go!
 
 ## 💪 What Makes WOLverine So Powerful?
 
@@ -36,7 +36,7 @@ The magic behind **WOLverine** lies in **Wake-on-LAN** technology, which allows 
 
 In a world full of computer networks where devices often fall into sleep mode, and their heroes (the administrators) are far away, **WOLverine** provides the solution. Why deal with the hassle of waking them up physically when you can remotely call them back to life, whenever you need?
 
-**WOLverine** is not just a name – it`s a philosophy. It`s the power to always be ready to bring your network out of the dark and into action when needed. Just like Wolverine, who comes back after every fight, you`re always prepared to return to the battle.
+**WOLverine** is not just a name – it is a philosophy. It is the power to always be ready to bring your network out of the dark and into action when needed. Just like Wolverine, who comes back after every fight, you`re always prepared to return to the battle.
 
 ---
 
