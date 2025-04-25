@@ -48,13 +48,24 @@ You are the hero of your network. Get **WOLverine** and wake up your devices rem
 
 # 🖼️ Screenshots
 
-![Login Page](https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine1.png)
-![Dashboard](https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine2.png)
-![Stats Modal](https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine3.png)
-![Edit Host Form](https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine4.png)
-![User Management](https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine5.png)
-![Add User Form](https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine6.png)
-![Add Schedule Modal](https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine7.png)
+<p float="left">
+  <img src="https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine1.png" width="45%" />
+  <img src="https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine2.png" width="45%" />
+</p>
+
+<p float="left">
+  <img src="https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine3.png" width="45%" />
+  <img src="https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine4.png" width="45%" />
+</p>
+
+<p float="left">
+  <img src="https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine5.png" width="45%" />
+  <img src="https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine6.png" width="45%" />
+</p>
+
+<p float="left">
+  <img src="https://raw.githubusercontent.com/Michdo93/test2/refs/heads/main/wolverine7.png" width="45%" />
+</p>
 
 ---
 
