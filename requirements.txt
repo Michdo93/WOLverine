@@ -1,7 +1,7 @@
 Flask==3.0.3
-Flask-SocketIO==5.5.1
+Flask-SocketIO==5.3.6
 Flask-HTTPAuth==4.8.0
-Flask-SQLAlchemy==2.5.1
+Flask-SQLAlchemy==3.1.1
 flask-cors==5.0.0
 ping3==4.0.8
 paramiko==2.6.0
@@ -10,3 +10,4 @@ bcrypt==3.1.7
 psutil==5.5.1
 eventlet==0.39.1
 APScheduler==3.11.0
+pytz==2025.2
