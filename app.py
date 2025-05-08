@@ -5,7 +5,7 @@ import bcrypt
 import hmac
 import time
 import secrets
-from flask import Flask, render_template, request, redirect, session, jsonify, Response, url_for, flash
+from flask import Flask, render_template, request, redirect, session, jsonify, Response, url_for, flash, send_file
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from functools import wraps
@@ -17,6 +17,8 @@ from uuid import uuid4
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+import csv
+import io
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
@@ -385,6 +387,69 @@ def stats(device_id):
             'ping': stat.ping
         } for stat in stats
     ])
+
+# CSV Import/Export
+
+# Import CSV
+# Import CSV
+@app.route('/import_csv', methods=['POST'])
+def import_csv():
+    if 'file' not in request.files:
+        flash('No file selected')
+        return redirect('/')
+
+    file = request.files['file']
+    if file.filename == '':
+        flash('Missing filename')
+        return redirect('/')
+
+    if not file.filename.endswith('.csv'):
+        flash('Only csv files are supported')
+        return redirect('/')
+
+    stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+    reader = csv.DictReader(stream)
+
+    # Uses the SQLAlchemy connection instead of sqlite3
+    for row in reader:
+        name = row['name'].strip()
+        mac = row['mac'].strip()
+        ip = row.get('ip', '').strip()
+        ssh_user = row.get('ssh_user', '').strip() or None
+        ssh_password = row.get('ssh_password', '').strip() or None
+        ssh_key_path = row.get('ssh_key_path', '').strip() or None
+
+        # Prevents duplicates: MAC + name must be unique
+        existing_host = Host.query.filter_by(mac=mac, name=name).first()
+        if not existing_host:
+            new_host = Host(
+                name=name,
+                mac=mac,
+                ip=ip,
+                ssh_user=ssh_user,
+                ssh_password=ssh_password,
+                ssh_key_path=ssh_key_path
+            )
+            db.session.add(new_host)
+
+    db.session.commit()
+    flash("CSV file successfully imported.")
+    return redirect('/')
+
+# Export CSV
+@app.route('/export_csv')
+def export_csv():
+    # Uses SQLAlchemy requests for retrieving the hosts
+    hosts = Host.query.all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['name', 'mac', 'ip', 'ssh_user', 'ssh_password', 'ssh_key_path'])  # Header
+    for host in hosts:
+        writer.writerow([host.name, host.mac, host.ip, host.ssh_user, host.ssh_password, host.ssh_key_path])
+
+    output.seek(0)
+    return send_file(io.BytesIO(output.getvalue().encode()), mimetype='text/csv', as_attachment=True, download_name='hosts.csv')
 
 # -------------------
 # REST API Endpoints
