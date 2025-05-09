@@ -4,6 +4,12 @@
   <img src="https://raw.githubusercontent.com/Michdo93/WOLverine/refs/heads/main/static/wolverine.webp" alt="Wolverine Logo" width="300">
 </div>
 
+![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)
+![Flask](https://img.shields.io/badge/built%20with-Flask-%23d44a36)
+![License](https://img.shields.io/github/license/Michdo93/WOLverine)
+![Issues](https://img.shields.io/github/issues/Michdo93/WOLverine)
+![Stars](https://img.shields.io/github/stars/Michdo93/WOLverine?style=social)
+
 # 🦾 WOLverine – The Power of Resurrection
 
 **WOLverine** (WOL = Wake-on-LAN + Wolverine 😄) is not just a tool for waking up computers remotely, but also a tribute to the legendary mutant known for his incredible healing abilities and his knack for coming back to life no matter what. Just like Wolverine, who can heal and rise again after every defeat, **WOLverine** allows your computer to wake from a deep slumber and resume its duties – without you lifting a finger.
